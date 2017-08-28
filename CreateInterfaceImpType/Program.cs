@@ -5,13 +5,13 @@ using System.Reflection;
 using System.Reflection.Emit;
 
 namespace CreateInterfaceImpType {
-    public interface UserApi {
-        [RestApi(Url = "xxxx", Method = Methods.GET)]
-        string GetName([RestApiParam(Field = "userId")] string id);
+    public interface GoodideaUserApi {
+        [RestApi(Url = "http://goodidea.nkfust.edu.tw/api/user/about", Method = Methods.GET)]
+        string GetInfo([RestApiParam] string id);
     }
     class Program {
         static void Main(string[] args) {
-
+            var r = ApiClient.Create<GoodideaUserApi>().GetInfo("u0124008@nkfust.edu.tw");
 
             Console.ReadKey();
         }
