@@ -6,21 +6,19 @@ using System.Reflection.Emit;
 
 namespace CreateInterfaceImpType {
     public interface IExample {
-        string WriteLine(string str);
+        void WriteLine(string str);
     }
     class Program {
         static void Main(string[] args) {
             var type = CreateInterfaceImpType<IExample>(new {
-                WriteLine = (Func<IExample, string, string>)((IExample THIS, string str) => {
+                WriteLine = (Action<IExample, string>)((IExample THIS, string str) => {
                     Console.WriteLine(THIS.GetType().Name + ", " + str);
-                    return "";
-                }),
-                abc = 13
+                })
             });
 
             var instance = (IExample)Activator.CreateInstance(type);
 
-            var gg = instance.WriteLine("XuPeiYao");
+            instance.WriteLine("XuPeiYao");
 
             Console.ReadKey();
         }
@@ -71,34 +69,32 @@ namespace CreateInterfaceImpType {
                 //使用IL產生器
                 ILGenerator il = tempMethodBuilder.GetILGenerator();
 
-                il.Emit(OpCodes.Ldarg_0); //this
+                il.EmitThis();
                 il.Emit(OpCodes.Ldfld, tempField); //this.tempField
 
-                //#region new object[parameters.Length + 1]{this, parameters...};
-                il.Emit(OpCodes.Ldc_I4, parameters.Length + 1);
-                il.Emit(OpCodes.Newarr, typeof(object));
-
-                //設定object[]元素
+                var initArray = new Dictionary<int, EmitOper>();
+                //初始化後立刻設定object[]元素
                 for (int i = 0; i < parameters.Length + 1; i++) {
-                    il.Emit(OpCodes.Dup);
-                    il.Emit(OpCodes.Ldc_I4, i);//索引值
-                    il.Emit(OpCodes.Ldarg, i);//方法參數 i==0...為this
-                    il.Emit(OpCodes.Stelem_Ref);//REF
+                    initArray.Add(i, new EmitOper() {
+                        OpCode = OpCodes.Ldarg,
+                        Arg = i
+                    });
                 }
-                //#endregion
+                il.EmitNewArrayInit<object>(parameters.Length + 1, initArray);
+
 
                 if (method.ReturnType == typeof(void)) {
                     //this.tempField(new object[parameters.Length + 1]{this, parameters...});
-                    il.Emit(OpCodes.Call, typeof(Delegate).GetMethod("DynamicInvoke"));
+                    il.Emit(OpCodes.Call, typeof(Delegate).GetMethod("DynamicInvoke"));//Dynamic return void
                     il.Emit(OpCodes.Pop);//remove stack index-0
                     //return;
-                    il.Emit(OpCodes.Ret);
+                    il.EmitReturn();
                 } else {
                     //this.tempField(new object[parameters.Length + 1]{this, parameters...});
                     il.Emit(OpCodes.Callvirt, typeof(Delegate).GetMethod("DynamicInvoke"));
 
                     //return this.tempField(new object[parameters.Length + 1]{this, parameters...});
-                    il.Emit(OpCodes.Ret);
+                    il.EmitReturn();
                 }
 
                 tempTypeBuilder.DefineMethodOverride(
@@ -113,9 +109,6 @@ namespace CreateInterfaceImpType {
                 result.GetField(fieldList[field], BindingFlags.NonPublic | BindingFlags.Static)
                     .SetValue(null, impObj.GetType().GetProperty(field).GetValue(impObj));
             }
-
-
-
 
             return result;
         }
