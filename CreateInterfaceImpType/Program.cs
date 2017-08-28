@@ -6,21 +6,21 @@ using System.Reflection.Emit;
 
 namespace CreateInterfaceImpType {
     public interface IExample {
-        int abc { get; }
-        void WriteLine(string str);
+        string WriteLine(string str);
     }
     class Program {
         static void Main(string[] args) {
             var type = CreateInterfaceImpType<IExample>(new {
-                WriteLine = (Action<IExample, string>)((IExample THIS, string str) => {
+                WriteLine = (Func<IExample, string, string>)((IExample THIS, string str) => {
                     Console.WriteLine(THIS.GetType().Name + ", " + str);
+                    return "";
                 }),
                 abc = 13
             });
 
             var instance = (IExample)Activator.CreateInstance(type);
 
-            instance.WriteLine("XuPeiYao");
+            var gg = instance.WriteLine("XuPeiYao");
 
             Console.ReadKey();
         }
@@ -106,31 +106,6 @@ namespace CreateInterfaceImpType {
                     method
                 );
             }
-
-            List<FieldBuilder> proFieldList = new List<FieldBuilder>();
-            foreach (var pro in impObj.GetType().GetProperties()) {
-                if (fieldList.Keys.Contains(pro.Name)) continue;
-                proFieldList.Add(tempTypeBuilder.DefineField(pro.Name, pro.PropertyType, FieldAttributes.Public));
-            }
-
-            ConstructorBuilder tempConstructor =
-                tempTypeBuilder
-                .DefineConstructor(
-                    MethodAttributes.Public,
-                    CallingConventions.Standard,
-                    Type.EmptyTypes);
-            ILGenerator cil = tempConstructor.GetILGenerator();
-            cil.Emit(OpCodes.Ldarg_0); //this
-            cil.Emit(OpCodes.Call, typeof(object).GetConstructor(Type.EmptyTypes)); //new base()
-            cil.Emit(OpCodes.Nop);
-            cil.Emit(OpCodes.Nop);
-            foreach (var field in proFieldList) {
-                cil.Emit(OpCodes.Ldarg_0); //this
-                cil.Emit(OpCodes.Call, impObj.GetType().GetProperty(field.Name).GetMethod);
-                cil.Emit(OpCodes.Stfld, field);
-            }
-            cil.Emit(OpCodes.Ret);
-
 
             Type result = tempTypeBuilder.CreateType();
 
